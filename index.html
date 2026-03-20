@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>GameSnap | Level Capture Extension</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      user-select: none; /* Better for capture UI, but text can be selected if needed */
+    }
+
+    body {
+      background: radial-gradient(circle at 20% 30%, #0a0f1e, #03060c);
+      font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, 'Poppins', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+
+    /* main card container */
+    .capture-hub {
+      max-width: 1400px;
+      width: 100%;
+      background: rgba(12, 20, 30, 0.65);
+      backdrop-filter: blur(12px);
+      border-radius: 3rem;
+      border: 1px solid rgba(80, 180, 255, 0.25);
+      box-shadow: 0 25px 45px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(0, 255, 255, 0.1) inset;
+      overflow: hidden;
+      transition: all 0.2s ease;
+    }
+
+    /* header area */
+    .extension-header {
+      padding: 1.5rem 2rem;
+      background: rgba(0, 10, 20, 0.7);
+      border-bottom: 1px solid rgba(0, 255, 255, 0.3);
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .brand h1 {
+      font-size: 1.9rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #FFFFFF, #3bc9ff, #a855f7);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      letter-spacing: -0.5px;
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand h1::before {
+      content: "🎮";
+      font-size: 2rem;
+      background: none;
+      -webkit-background-clip: unset;
+      color: #ffd966;
+    }
+
+    .badge {
+      background: #1e2a3a;
+      padding: 0.4rem 1rem;
+      border-radius: 40px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: #9ad7ff;
+      border: 1px solid #2d4a6e;
+      backdrop-filter: blur(4px);
+    }
+
+    /* main capture area */
+    .capture-stage {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.8rem;
+      padding: 2rem;
+    }
+
+    /* live preview panel (simulated game level view) */
+    .preview-panel {
+      flex: 2;
+      min-width: 280px;
+      background: #07121c;
+      border-radius: 2rem;
+      border: 1px solid #2c4458;
+      overflow: hidden;
+      box-shadow: 0 12px 28px black;
+    }
+
+    .preview-header {
+      background: #0b1620;
+      padding: 0.9rem 1.5rem;
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      border-bottom: 1px solid #1f3a4b;
+      color: #b9e2ff;
+    }
+
+    .game-canvas-container {
+      background: #000000;
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 1rem;
+    }
+
+    canvas {
+      display: block;
+      margin: 0 auto;
+      width: 100%;
+      height: auto;
+      background: radial-gradient(circle at 30% 20%, #1b3b4f, #04121f);
+      border-radius: 1rem;
+      cursor: crosshair;
+      box-shadow: 0 0 0 2px rgba(0, 255, 255, 0.2);
+    }
+
+    /* level controls */
+    .level-controls {
+      margin-top: 1rem;
+      padding: 0.8rem 1.5rem 1.5rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      justify-content: space-between;
+      background: #0a111c;
+      border-top: 1px solid #1f3443;
+    }
+
+    .level-selector {
+      display: flex;
+      gap: 12px;
+      background: #030b12;
+      padding: 0.4rem 0.8rem;
+      border-radius: 60px;
+    }
+
+    .level-btn {
+      background: #1f2f3c;
+      border: none;
+      color: white;
+      font-weight: bold;
+      padding: 6px 18px;
+      border-radius: 40px;
+      font-family: monospace;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.15s;
+      box-shadow: 0 1px 2px black;
+    }
+
+    .level-btn.active {
+      background: #2b6a9f;
+      box-shadow: 0 0 8px #3bc9ff;
+      border: 1px solid #7bcbff;
+    }
+
+    .level-btn:hover {
+      background: #3a6e8c;
+      transform: scale(0.96);
+    }
+
+    /* capture panel (extension features) */
+    .capture-panel {
+      flex: 1.2;
+      min-width: 260px;
+      background: rgba(8, 18, 28, 0.8);
+      backdrop-filter: blur(8px);
+      border-radius: 2rem;
+      border: 1px solid #2d5470;
+      padding: 1.6rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.8rem;
+    }
+
+    .capture-tools h3, .gallery-header h3 {
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: #bbf0ff;
+      border-left: 4px solid #3bc9ff;
+      padding-left: 12px;
+      margin-bottom: 1rem;
+    }
+
+    .capture-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .btn-capture {
+      background: linear-gradient(95deg, #0f2c3b, #06212e);
+      border: 1px solid #2f8bb3;
+      color: white;
+      padding: 12px 12px;
+      border-radius: 60px;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: 0.1s linear;
+    }
+
+    .btn-capture.primary {
+      background: linear-gradient(95deg, #1d6f9c, #0a4562);
+      box-shadow: 0 4px 12px rgba(0, 160, 255, 0.3);
+      border-color: #5bc0ff;
+    }
+
+    .btn-capture:hover {
+      transform: translateY(-2px);
+      filter: brightness(1.05);
+    }
+
+    .format-row {
+      display: flex;
+      gap: 1rem;
+      background: #05121c;
+      padding: 0.6rem 1rem;
+      border-radius: 60px;
+      justify-content: center;
+    }
+
+    .format-row label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: #b9e2ff;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    /* gallery grid */
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+      gap: 12px;
+      max-height: 280px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .gallery-item {
+      background: #0b1822;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid #2c5a74;
+      transition: 0.1s;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .gallery-item img {
+      width: 100%;
+      aspect-ratio: 16/9;
+      object-fit: cover;
+      display: block;
+    }
+
+    .gallery-item:hover {
+      transform: scale(1.02);
+      border-color: #6bc6ff;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    }
+
+    .delete-badge {
+      position: absolute;
+      top: 4px;
+      right: 6px;
+      background: rgba(0,0,0,0.7);
+      border-radius: 30px;
+      font-size: 12px;
+      padding: 2px 6px;
+      font-weight: bold;
+      color: #ff9e8f;
+      backdrop-filter: blur(2px);
+    }
+
+    .empty-gallery {
+      color: #6c8ea0;
+      text-align: center;
+      font-size: 0.85rem;
+      padding: 1.5rem;
+      font-style: italic;
+    }
+
+    .notification {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1e2f3cce;
+      backdrop-filter: blur(12px);
+      border-radius: 60px;
+      padding: 10px 28px;
+      color: white;
+      font-weight: 500;
+      border-left: 4px solid #3bc9ff;
+      font-size: 0.9rem;
+      z-index: 1000;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #071520;
+      border-radius: 8px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #2f6d8f;
+      border-radius: 8px;
+    }
+
+    footer {
+      text-align: center;
+      padding: 1rem;
+      font-size: 0.7rem;
+      color: #4f7993;
+      border-top: 1px solid #173e52;
+    }
+  </style>
+</head>
+<body>
+
+<div class="capture-hub">
+  <div class="extension-header">
+    <div class="brand">
+      <h1>Level Capture · GameSnap</h1>
+    </div>
+    <div class="badge">
+      ⚡ Extension Mode | Instant Capture
+    </div>
+  </div>
+
+  <div class="capture-stage">
+    <!-- Left side: live game level simulation -->
+    <div class="preview-panel">
+      <div class="preview-header">
+        <span>🎮 LIVE LEVEL PREVIEW</span>
+        <span>🖱️ Click + drag to orbit? (simulated)</span>
+      </div>
+      <div class="game-canvas-container">
+        <canvas id="gameCanvas" width="640" height="360" style="width:100%; height:auto; max-width:640px; aspect-ratio:640/360"></canvas>
+      </div>
+      <div class="level-controls">
+        <div class="level-selector">
+          <button data-level="0" class="level-btn active">🏔️ FOREST RUINS</button>
+          <button data-level="1" class="level-btn">🌋 MAGMA CORE</button>
+          <button data-level="2" class="level-btn">❄️ FROST TEMPLE</button>
+        </div>
+        <div style="font-size: 12px; color:#6a9cbb;">
+          🎯 interactive level preview
+        </div>
+      </div>
+    </div>
+
+    <!-- Right side: capture extension tools + gallery -->
+    <div class="capture-panel">
+      <div class="capture-tools">
+        <h3>📸 Capture Extension</h3>
+        <div class="capture-buttons">
+          <button id="captureScreenshotBtn" class="btn-capture primary">
+            📷 CAPTURE THIS LEVEL
+          </button>
+          <div class="format-row">
+            <label><input type="radio" name="format" value="image/png" checked> PNG (lossless)</label>
+            <label><input type="radio" name="format" value="image/jpeg"> JPEG (compact)</label>
+            <label><input type="radio" name="format" value="image/webp"> WebP (modern)</label>
+          </div>
+          <button id="downloadAllBtn" class="btn-capture" style="background:#0f2c2c;">
+            📦 Download All Captures (.zip)
+          </button>
+          <button id="clearGalleryBtn" class="btn-capture" style="background:#2a1f2c; border-color:#a04444;">
+            🗑️ Clear Gallery
+          </button>
+        </div>
+      </div>
+      <div class="gallery-section">
+        <div class="gallery-header">
+          <h3>📁 Level Gallery <span id="captureCountBadge">(0)</span></h3>
+        </div>
+        <div id="galleryContainer" class="gallery-grid">
+          <div class="empty-gallery">✨ No captures yet. Press 'CAPTURE THIS LEVEL' to save moments.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <footer>
+    🎮 GameSnap Extension — Real-time canvas capture with level tagging & export. All screenshots stored locally.
+  </footer>
+</div>
+<div id="notificationToast" class="notification" style="opacity:0;">Notification</div>
+
+<script>
+  (function(){
+    // ---------- GAME LEVEL SIMULATION ----------
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Level themes & dynamic objects
+    let currentLevel = 0;  // 0: forest, 1: magma, 2: frost
+    let timeOffset = 0;
+    let animationId = null;
+    
+    // Simple animated level drawing functions
+    function drawForest(now) {
+      // background gradient
+      const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      grad.addColorStop(0, '#1a472a');
+      grad.addColorStop(1, '#0e2a1a');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // trees
+      for (let i = 0; i < 12; i++) {
+        let x = 50 + i * 55 + Math.sin(now * 0.001 + i) * 8;
+        let y = canvas.height - 50;
+        ctx.fillStyle = '#3c8c40';
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x - 18, y - 45);
+        ctx.lineTo(x + 18, y - 45);
+        ctx.fill();
+        ctx.fillStyle = '#7a5a3a';
+        ctx.fillRect(x-6, y-20, 12, 30);
+      }
+      // floating particles (fireflies)
+      for (let i=0;i<25;i++) {
+        let fx = (i*37 + now*0.8) % canvas.width;
+        let fy = 120 + Math.sin(i + now*0.003) * 50;
+        ctx.beginPath();
+        ctx.arc(fx, fy, 2, 0, Math.PI*2);
+        ctx.fillStyle = `rgba(255, 220, 100, ${0.5+Math.sin(now*0.005+i)*0.3})`;
+        ctx.fill();
+      }
+      // ground
+      ctx.fillStyle = '#4f6b2e';
+      ctx.fillRect(0, canvas.height-40, canvas.width, 50);
+      ctx.fillStyle = '#c9ae5c';
+      ctx.font = 'bold 20px "Segoe UI"';
+      ctx.shadowBlur = 0;
+      ctx.fillText("🌲 FOREST RUINS", 20, 50);
+      ctx.font = '12px monospace';
+      ctx.fillStyle = '#c3e8a5';
+      ctx.fillText("ancient grove | level 1", 20, 85);
+    }
+    
+    function drawMagma(now) {
+      const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      grad.addColorStop(0, '#632c0c');
+      grad.addColorStop(1, '#2c0c02');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // lava rivers
+      for (let i=0;i<6;i++) {
+        let yOff = canvas.height - 50 + Math.sin(now*0.002 + i)*10;
+        ctx.fillStyle = '#ff7b2c';
+        ctx.beginPath();
+        ctx.moveTo(0, yOff-15 + i*12);
+        ctx.quadraticCurveTo(canvas.width/2, yOff+Math.sin(now*0.004)*20, canvas.width, yOff-8+i*6);
+        ctx.lineTo(canvas.width, yOff+20+i*4);
+        ctx.quadraticCurveTo(canvas.width/2, yOff+25+Math.sin(now*0.003)*12, 0, yOff+8);
+        ctx.fill();
+      }
+      // embers
+      for(let i=0;i<40;i++) {
+        let ex = (i*23 + now*2) % canvas.width;
+        let ey = canvas.height-30 - (i%3)*12 + Math.sin(now*0.01+i)*6;
+        ctx.beginPath();
+        ctx.arc(ex, ey, 2, 0, Math.PI*2);
+        ctx.fillStyle = `rgba(255, 100, 20, 0.9)`;
+        ctx.fill();
+      }
+      ctx.fillStyle = '#ffc285';
+      ctx.font = 'bold 20px "Segoe UI"';
+      ctx.fillText("🌋 MAGMA CORE", 20, 50);
+      ctx.font = '12px monospace';
+      ctx.fillStyle = '#f8b47c';
+      ctx.fillText("volcanic depths | level 2", 20, 85);
+    }
+    
+    function drawFrost(now) {
+      const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      grad.addColorStop(0, '#a0d2e8');
+      grad.addColorStop(1, '#407088');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // ice crystals
+      for (let i=0;i<18;i++) {
+        let x = 40 + i * 45 + Math.sin(now*0.002 + i)*5;
+        let y = canvas.height-55;
+        ctx.beginPath();
+        ctx.moveTo(x, y-20);
+        ctx.lineTo(x-8, y);
+        ctx.lineTo(x, y+8);
+        ctx.lineTo(x+8, y);
+        ctx.fillStyle = '#b5e4ff';
+        ctx.fill();
+        ctx.fillStyle = '#6ab0de';
+        ctx.fillRect(x-3, y-5, 6, 15);
+      }
+      // snow
+      for(let s=0;s<80;s++) {
+        let sx = (s*131 + now*0.5) % canvas.width;
+        let sy = (s*57 + now*0.8) % canvas.height;
+        ctx.beginPath();
+        ctx.arc(sx, sy, 1.5, 0, Math.PI*2);
+        ctx.fillStyle = `rgba(255,255,255,0.7)`;
+        ctx.fill();
+      }
+      ctx.fillStyle = '#d9f0ff';
+      ctx.font = 'bold 20px "Segoe UI"';
+      ctx.fillText("❄️ FROST TEMPLE", 20, 50);
+      ctx.font = '12px monospace';
+      ctx.fillStyle = '#c6e9ff';
+      ctx.fillText("ethereal ice shrine | level 3", 20, 85);
+    }
+    
+    function animateLevel() {
+      if (!canvas.isConnected) return;
+      const now = performance.now();
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.shadowBlur = 0;
+      if (currentLevel === 0) drawForest(now);
+      else if (currentLevel === 1) drawMagma(now);
+      else drawFrost(now);
+      
+      // Extra glint effect
+      ctx.shadowBlur = 4;
+      ctx.strokeStyle = '#ffffff66';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(4,4, canvas.width-8, canvas.height-8);
+      requestAnimationFrame(animateLevel);
+    }
+    
+    // level switching logic
+    const levelBtns = document.querySelectorAll('.level-btn');
+    function setLevel(levelIndex) {
+      currentLevel = levelIndex;
+      levelBtns.forEach((btn, idx) => {
+        const lvlVal = parseInt(btn.getAttribute('data-level'));
+        if (lvlVal === levelIndex) btn.classList.add('active');
+        else btn.classList.remove('active');
+      });
+      showNotif(`🎮 Switched to ${getLevelName(levelIndex)}`, 1500);
+    }
+    
+    function getLevelName(idx) {
+      if(idx===0) return "FOREST RUINS";
+      if(idx===1) return "MAGMA CORE";
+      return "FROST TEMPLE";
+    }
+    
+    levelBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const lvl = parseInt(btn.getAttribute('data-level'));
+        setLevel(lvl);
+      });
+    });
+    
+    // start animation
+    animateLevel();
+    
+    // ---------- CAPTURE EXTENSION LOGIC (localStorage + gallery) ----------
+    let capturedShots = []; // store objects { id, dataUrl, levelName, timestamp, format }
+    
+    function loadGalleryFromStorage() {
+      const stored = localStorage.getItem('gamesnap_captures');
+      if(stored) {
+        try {
+          capturedShots = JSON.parse(stored);
+          if(!Array.isArray(capturedShots)) capturedShots = [];
+        } catch(e) { capturedShots = []; }
+      } else {
+        // add some demo capture maybe? but keep empty.
+        capturedShots = [];
+      }
+      renderGallery();
+    }
+    
+    function saveGalleryToStorage() {
+      localStorage.setItem('gamesnap_captures', JSON.stringify(capturedShots));
+      updateCountBadge();
+    }
+    
+    function updateCountBadge() {
+      const badgeSpan = document.getElementById('captureCountBadge');
+      if(badgeSpan) badgeSpan.innerText = `(${capturedShots.length})`;
+    }
+    
+    function getSelectedFormat() {
+      const radios = document.querySelectorAll('input[name="format"]');
+      for(let radio of radios) {
+        if(radio.checked) return radio.value;
+      }
+      return 'image/png';
+    }
+    
+    function captureCurrentLevel() {
+      // capture canvas as image with current level context
+      const format = getSelectedFormat();
+      let mime = format;
+      let extension = 'png';
+      if(mime === 'image/jpeg') extension = 'jpg';
+      else if(mime === 'image/webp') extension = 'webp';
+      else extension = 'png';
+      
+      try {
+        const dataUrl = canvas.toDataURL(mime, 0.92);
+        const levelName = getLevelName(currentLevel);
+        const timestamp = new Date().toLocaleString();
+        const newCapture = {
+          id: Date.now() + Math.random()*10000,
+          dataUrl: dataUrl,
+          levelName: levelName,
+          timestamp: timestamp,
+          format: extension,
+          mime: mime
+        };
+        capturedShots.unshift(newCapture); // newest first
+        // limit gallery to 30 items to avoid storage blow (optional)
+        if(capturedShots.length > 40) capturedShots.pop();
+        saveGalleryToStorage();
+        renderGallery();
+        showNotif(`✅ Captured ${levelName} as .${extension.toUpperCase()}!`, 1800);
+      } catch(err) {
+        console.error(err);
+        showNotif("❌ Capture failed (canvas security?)", 2000);
+      }
+    }
+    
+    function renderGallery() {
+      const galleryDiv = document.getElementById('galleryContainer');
+      if(!galleryDiv) return;
+      if(capturedShots.length === 0) {
+        galleryDiv.innerHTML = `<div class="empty-gallery">✨ No captures yet. Press 'CAPTURE THIS LEVEL' to save moments.</div>`;
+        return;
+      }
+      let html = '';
+      capturedShots.forEach((shot, idx) => {
+        html += `
+          <div class="gallery-item" data-id="${shot.id}">
+            <img src="${shot.dataUrl}" alt="level capture" loading="lazy">
+            <div class="delete-badge" data-id="${shot.id}" title="delete capture">🗑️</div>
+            <div style="font-size:10px; padding: 4px 6px; background:#07161f; color:#b0d4ff; text-align:center;">
+              ${shot.levelName}<br>${shot.format}
+            </div>
+          </div>
+        `;
+      });
+      galleryDiv.innerHTML = html;
+      // attach delete event listeners dynamically
+      document.querySelectorAll('.delete-badge').forEach(el => {
+        el.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const id = parseFloat(el.getAttribute('data-id'));
+          deleteCaptureById(id);
+        });
+      });
+      // clicking on image -> download that specific capture
+      document.querySelectorAll('.gallery-item img').forEach((img, idx) => {
+        img.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const parentDiv = img.closest('.gallery-item');
+          if(parentDiv) {
+            const id = parseFloat(parentDiv.getAttribute('data-id'));
+            const captureObj = capturedShots.find(c => c.id === id);
+            if(captureObj) downloadSingleCapture(captureObj);
+          }
+        });
+      });
+    }
+    
+    function deleteCaptureById(id) {
+      capturedShots = capturedShots.filter(shot => shot.id !== id);
+      saveGalleryToStorage();
+      renderGallery();
+      showNotif("🗑️ Screenshot removed from gallery", 1300);
+    }
+    
+    function downloadSingleCapture(capture) {
+      const link = document.createElement('a');
+      link.download = `gamesnap_${capture.levelName.replace(/\s/g, '_')}_${capture.id}.${capture.format}`;
+      link.href = capture.dataUrl;
+      link.click();
+      showNotif(`⬇️ Downloading ${capture.levelName} capture`, 1200);
+    }
+    
+    function downloadAllCapturesAsZip() {
+      if(capturedShots.length === 0) {
+        showNotif("⚠️ No captures in gallery. Take some screenshots first!", 2000);
+        return;
+      }
+      // using JSZip library? but we avoid external deps? For simplicity, we'll use a native fallback: download one by one? better create a batch notification.
+      // But to provide "zip" experience without external lib, we can prompt user to download each? not ideal. We'll implement using JSZip CDN? but the requirement says "create a gaming level capture extension website" — we can add lightweight JSZip via CDN.
+      // However, to keep standalone, we can implement a "download all as individual files" modal? Or load JSZip? better to embed CDN for full experience. I'll add JSZip script dynamically? But script must be present. For reliability, I'll use a standard approach: generate a zip using JSZip library if available, otherwise fallback.
+      // Because we have full control, I'll include JSZip from CDN via dynamic injection for this function. Safer: include at top? but we didn't. Let's add after DOM ready. But I'll define function that uses JSZip if loaded, else show instruction. But simpler: Use the fact that we are in full html, we'll add script tag for JSZip and FileSaver? 
+      // I'll do dynamic load but cleaner: I'll preload JSZip in head? but I didn't. However, I'll implement a robust: "batch download all images sequentially" if zip not available, but let's implement proper zip: add script dynamically.
+      if(typeof JSZip === 'undefined') {
+        showNotif("📦 Loading zip library... please try again.", 1500);
+        const script = document.createElement('script');
+        script.src = "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
+        script.onload = () => {
+          downloadAllAsZipInternal();
+        };
+        document.head.appendChild(script);
+      } else {
+        downloadAllAsZipInternal();
+      }
+    }
+    
+    function downloadAllAsZipInternal() {
+      if(typeof JSZip === 'undefined') {
+        showNotif("Zip library failed, trying fallback: download each file", 2000);
+        capturedShots.forEach(shot => downloadSingleCapture(shot));
+        return;
+      }
+      const zip = new JSZip();
+      let folder = zip.folder("GameSnap_Level_Captures");
+      capturedShots.forEach((shot, idx) => {
+        let base64Data = shot.dataUrl.split(',')[1];
+        let ext = shot.format;
+        folder.file(`level_${shot.levelName.replace(/\s/g, '_')}_${shot.id}.${ext}`, base64Data, {base64: true});
+      });
+      zip.generateAsync({type: "blob"}).then(function(content) {
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(content);
+        link.href = url;
+        link.download = `gamesnap_gallery_${new Date().toISOString().slice(0,19)}.zip`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        showNotif(`📦 Zipped ${capturedShots.length} captures!`, 2000);
+      }).catch(err => {
+        showNotif("Zip error, fallback to individual", 1500);
+        capturedShots.forEach(shot => downloadSingleCapture(shot));
+      });
+    }
+    
+    function clearGallery() {
+      if(capturedShots.length && confirm("Delete ALL screenshots from gallery?")) {
+        capturedShots = [];
+        saveGalleryToStorage();
+        renderGallery();
+        showNotif("✨ Gallery cleared", 1200);
+      } else if(capturedShots.length ===0) {
+        showNotif("Gallery already empty", 1000);
+      }
+    }
+    
+    function showNotif(msg, duration=1800) {
+      const toast = document.getElementById('notificationToast');
+      toast.innerText = msg;
+      toast.style.opacity = '1';
+      toast.style.transition = 'opacity 0.15s';
+      setTimeout(() => {
+        toast.style.opacity = '0';
+      }, duration);
+    }
+    
+    // Event binding
+    document.getElementById('captureScreenshotBtn').addEventListener('click', captureCurrentLevel);
+    document.getElementById('downloadAllBtn').addEventListener('click', downloadAllCapturesAsZip);
+    document.getElementById('clearGalleryBtn').addEventListener('click', clearGallery);
+    
+    loadGalleryFromStorage();
+    // if JSZip needed later, pre-check
+    window.addEventListener('load', () => {
+      if(typeof JSZip === 'undefined') {
+        // optional preload but fine.
+      }
+    });
+  })();
+</script>
+<!-- ensure JSZip is optionally loaded for better zip experience, but function dynamic will load -->
+</body>
+</html>
