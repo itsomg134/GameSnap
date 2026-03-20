@@ -7,7 +7,7 @@
 
 A sleek, browser-based gaming level capture tool that lets you screenshot animated game levels, manage your captures, and export them in multiple formats. Built with pure HTML5 Canvas, CSS3, and vanilla JavaScript.
 
-![GameSnap Demo](https://via.placeholder.com/800x400?text=GameSnap+Capture+Extension+Demo)
+![Screenshot_20-3-2026_235210_127 0 0 1](https://github.com/user-attachments/assets/7aff8ceb-9725-4de4-871e-aa2e658c8de8)
 
 ## Features
 
@@ -28,9 +28,6 @@ A sleek, browser-based gaming level capture tool that lets you screenshot animat
 - ** Local Storage** - Captures persist between sessions
 - ** Interactive Level Switching** - Seamless transition between game environments
 
-##  Live Demo
-
-[View Live Demo](https://your-demo-link.com) *(Add your live demo link here)*
 
 ##  Technologies Used
 
